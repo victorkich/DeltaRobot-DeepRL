@@ -385,11 +385,11 @@ max_d_kl = 0.01
 
 
 def update_agent(rollouts):
-    states = torch.cat([r.states for r in rollouts], dim=0)
-    actions = torch.cat([r.actions for r in rollouts], dim=0).flatten()
+    states = torch.cat([r.states for r in rollouts], dim=0).to(device)
+    actions = torch.cat([r.actions for r in rollouts], dim=0).flatten().to(device)
 
     advantages = [estimate_advantages(states, next_states[-1], rewards) for states, _, rewards, next_states in rollouts]
-    advantages = torch.cat(advantages, dim=0).flatten()
+    advantages = torch.cat(advantages, dim=0).flatten().to(device)
 
     # Normalize advantages to reduce skewness and improve convergence
     advantages = (advantages - advantages.mean()) / advantages.std()
