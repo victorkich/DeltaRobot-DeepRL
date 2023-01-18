@@ -536,8 +536,8 @@ def trainTRPO(epochs=200, num_rollouts=500):
             # Transpose our samples
             states, actions, rewards, next_states = zip(*samples)
 
-            states = torch.stack([torch.from_numpy(state) for state in states], dim=0).float()
-            next_states = torch.stack([torch.from_numpy(state) for state in next_states], dim=0).float()
+            states = torch.stack([torch.from_numpy(state) for state in states], dim=0).float().to(device)
+            next_states = torch.stack([torch.from_numpy(state) for state in next_states], dim=0).float().to(device)
             actions = torch.as_tensor(actions).unsqueeze(1).to(device)
             rewards = torch.as_tensor(rewards).unsqueeze(1).to(device)
 
