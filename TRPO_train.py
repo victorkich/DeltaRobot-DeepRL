@@ -346,7 +346,7 @@ Rollout = namedtuple('Rollout', ['states', 'actions', 'rewards', 'next_states', 
 
 
 def get_action(state):
-    state = torch.tensor(state).float().unsqueeze(0)  # Turn state into a batch with a single element
+    state = torch.tensor(state).float().unsqueeze(0).to(device)  # Turn state into a batch with a single element
     dist = Categorical(actor(state))  # Create a distribution from probabilities for actions
     return dist.sample().item()
 
@@ -538,8 +538,8 @@ def trainTRPO(epochs=200, num_rollouts=500):
 
             states = torch.stack([torch.from_numpy(state) for state in states], dim=0).float()
             next_states = torch.stack([torch.from_numpy(state) for state in next_states], dim=0).float()
-            actions = torch.as_tensor(actions).unsqueeze(1)
-            rewards = torch.as_tensor(rewards).unsqueeze(1)
+            actions = torch.as_tensor(actions).unsqueeze(1).to(device)
+            rewards = torch.as_tensor(rewards).unsqueeze(1).to(device)
 
             rollouts.append(Rollout(states, actions, rewards, next_states))
 
