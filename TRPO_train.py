@@ -12,7 +12,7 @@ import matplotlib
 # matplotlib.use('Agg')
 
 
-class DeltaEnv():
+class DeltaEnv:
     def __init__(self):
 
         self.min_theta = -1.1
@@ -325,6 +325,7 @@ actor_hidden = 32
 env = DeltaEnv()
 state_size = env.observation_space.n
 num_actions = env.action_space.n
+device = 'cuda'
 
 actor = nn.Sequential(nn.Linear(state_size, 300),
                       nn.ReLU(),
@@ -339,7 +340,7 @@ actor = nn.Sequential(nn.Linear(state_size, 300),
                       nn.Linear(400, 300),
                       nn.ReLU(),
                       nn.Linear(300, num_actions),
-                      nn.Softmax(dim=1))
+                      nn.Softmax(dim=1)).to(device)
 
 Rollout = namedtuple('Rollout', ['states', 'actions', 'rewards', 'next_states', ])
 
@@ -365,7 +366,7 @@ critic = nn.Sequential(nn.Linear(state_size, 300),
                       nn.ReLU(),
                       nn.Linear(400, 300),
                       nn.ReLU(),
-                      nn.Linear(300, 1))
+                      nn.Linear(300, 1)).to(device)
 #critic = nn.Sequential(nn.Linear(state_size, critic_hidden),
 #                       nn.ReLU(),
 #                       nn.Linear(critic_hidden, 1))
