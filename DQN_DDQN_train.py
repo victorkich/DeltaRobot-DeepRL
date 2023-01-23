@@ -678,10 +678,6 @@ def train(algorithm='DQN'):
         if not load_models:
             agent.decrement_epsilon()
 
-        # Save model
-        if episode > 100 and episode % 20 == 0:
-            agent.save_models()
-
         total_reward_hist.append(total_reward)
         avg_reward = np.average(total_reward_hist[-100:])
         avg_reward_hist.append(avg_reward)
