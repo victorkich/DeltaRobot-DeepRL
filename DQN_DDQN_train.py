@@ -686,10 +686,15 @@ def train(algorithm='DQN'):
     return total_reward_hist, avg_reward_hist, agent.qnetwork_local
 
 
+print('Training DQN...')
 total_reward_hist_dqn, avg_reward_hist_dqn, actor = train('DQN')
+print('Saving log...')
 np.save('DQN_data.npy', avg_reward_hist_dqn)
-T.save('DQN_agent.pt', actor)
-
+print('Saving model...')
+T.save(actor, 'DQN_agent.pt')
+print('Training DDQN...')
 total_reward_hist_ddqn, avg_reward_hist_ddqn, actor = train('DDQN')
+print('Saving log...')
 np.save('DDQN_data.npy', avg_reward_hist_ddqn)
-T.save('DDQN_agent.pt', actor)
+print('Saving model...')
+T.save(actor, 'DDQN_agent.pt')
