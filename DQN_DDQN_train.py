@@ -645,7 +645,7 @@ def train(algorithm='DQN'):
         agent = DDQNAgent(alpha=0.0001, n_states=n_states, n_actions=n_actions, eps=0.2, eps_min=0.01)
     # writer = SummaryWriter(f'./log/{LOGS_DIR}')
     load_models = False
-    n_episodes = 500
+    n_episodes = 200
     n_steps = 500
 
     # Load weights
