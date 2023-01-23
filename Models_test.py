@@ -349,13 +349,16 @@ class DeltaEnv:
         ax.cla()
         plt.close(fig)
 
+
 import os
 import torch as T
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+
+
 class QNetwork(nn.Module):
-    def __init__(self, lr=LEARNING_RATE, n_states=4, n_actions=6):
+    def __init__(self, lr=0.00001, n_states=4, n_actions=6):
         super(QNetwork, self).__init__()
         # Detalhe da rede neural
         self.fc1 = nn.Linear(n_states, 300)
