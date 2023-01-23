@@ -1,14 +1,163 @@
-from torch.optim import Adam
-from torch.distributions import Categorical
-from collections import namedtuple
-import torch
-from torch import nn
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+import torch as T
+import os
 import random
 import numpy as np
 from gym import spaces
 import math as mt
 import matplotlib.pyplot as plt
-# matplotlib.use('Agg')
+
+
+class QNetwork(nn.Module):
+    def __init__(self, lr=LEARNING_RATE, n_states=4, n_actions=6, checkpoint_dir=f"./{WEIGHTS_DIR}", filename=f"{WEIGHTS_DIR}"):
+        super(QNetwork, self).__init__()
+        if not os.path.isdir(checkpoint_dir):
+            os.makedirs(checkpoint_dir)
+        self.checkpoint_file = os.path.join(checkpoint_dir, filename)
+        # Detalhe da rede neural
+        self.fc1 = nn.Linear(n_states, 300)
+        self.fc2 = nn.Linear(300, 400)
+        self.fc3 = nn.Linear(400, 600)
+        self.fc4 = nn.Linear(600, 600)
+        self.fc5 = nn.Linear(600, 400)
+        self.fc6 = nn.Linear(400, 300)
+        self.fc7 = nn.Linear(300, n_actions)
+        # Optimizer e loss
+        self.optimizer = optim.Adam(self.parameters(), lr=lr)
+        self.loss = nn.MSELoss()
+        self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
+        self.to(self.device)
+
+    def forward(self, state):
+        x = F.relu(self.fc1(state))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = F.relu(self.fc5(x))
+        x = F.relu(self.fc6(x))
+        return self.fc7(x)
+
+    def save_checkpoint(self):
+        print('... Save checkpoint ...')
+        T.save(self.state_dict(), self.checkpoint_file)
+
+    def load_checkpoint(self):
+        print('... Load checkpoint ...')
+        self.load_state_dict(T.load(self.checkpoint_file))
+
+
+class DQNAgent(object):
+    def __init__(
+        self,
+        alpha=0.0005,
+        gamma=0.99,
+        eps=EPS,
+        eps_decay=EPS_DECAY,
+        eps_min=EPS_MIN,
+        tau=0.001,
+        max_size=100000,
+        batch_size=64,
+        update_rate=4,
+        n_states=0,
+        n_actions=0,
+        checkpoint_dir=f"{WEIGHTS_DIR}",
+    ):
+
+        self.gamma = gamma
+        self.eps = eps
+        self.eps_decay = eps_decay
+        self.eps_min = eps_min
+        self.tau = tau
+        self.batch_size = batch_size
+        self.update_rate = update_rate
+        self.action_space = [i for i in range(n_actions)]
+
+        # Replay memory
+        self.memory = ReplayMemory(max_size=max_size, n_states=n_states)
+
+        # Q-Network
+        self.qnetwork_local = QNetwork(lr=alpha, n_states=n_states, n_actions=n_actions,
+                                       checkpoint_dir=checkpoint_dir, filename="qnetwork_local_TRAININGS.pth")
+        self.qnetwork_target = QNetwork(lr=alpha, n_states=n_states, n_actions=n_actions,
+                                        checkpoint_dir=checkpoint_dir, filename="qnetwork_target_TRAININGS.pth")
+
+        self.counter = 0
+
+    def decrement_epsilon(self):
+        self.eps *= self.eps_decay
+        if self.eps < self.eps_min:
+            self.eps = self.eps_min
+
+    def epsilon_greedy(self, state):
+        if np.random.random() > self.eps:
+            state = T.tensor([state], dtype=T.float).to(
+                self.qnetwork_local.device)
+            actions = self.qnetwork_local.forward(state)
+            action = T.argmax(actions).item()
+        else:
+            action = np.random.choice(self.action_space)
+        return action
+
+    def store_transition(self, state, action, reward, next_state, done):
+        self.memory.store_transition(state, action, reward, next_state, done)
+
+    def sample_memory(self):
+        states, actions, rewards, next_states, dones = \
+            self.memory.sample_memory(self.batch_size)
+        t_states = T.tensor(states).to(self.qnetwork_local.device)
+        t_actions = T.tensor(actions).to(self.qnetwork_local.device)
+        t_rewards = T.tensor(rewards).to(self.qnetwork_local.device)
+        t_next_states = T.tensor(next_states).to(self.qnetwork_local.device)
+        t_dones = T.tensor(dones).to(self.qnetwork_local.device)
+        return t_states, t_actions, t_rewards, t_next_states, t_dones
+
+    def save_models(self):
+        self.qnetwork_local.save_checkpoint()
+        self.qnetwork_target.save_checkpoint()
+
+    def load_models(self):
+        self.qnetwork_local.load_checkpoint()
+        self.qnetwork_target.load_checkpoint()
+
+    def learn(self, state, action, reward, next_state, done):
+        # Save experience to memory
+        self.store_transition(state, action, reward, next_state, done)
+
+        # If not enough memory then skip learning
+        if self.memory.memory_counter < self.batch_size:
+            return
+
+        # Update target network parameter every update rate
+        if self.counter % self.update_rate == 0:
+            self.soft_update(self.tau)
+
+        # Take random sampling from memory
+        states, actions, rewards, next_states, dones = self.sample_memory()
+
+        # Update action value
+        indices = np.arange(self.batch_size)
+        q_pred = self.qnetwork_local.forward(states)[indices, actions]
+        q_next = self.qnetwork_target.forward(next_states).max(dim=1)[0]
+        q_next[dones] = 0.0
+        q_target = rewards + self.gamma*q_next
+        self.qnetwork_local.optimizer.zero_grad()
+        loss = \
+            self.qnetwork_local.loss(q_target, q_pred) \
+            .to(self.qnetwork_local.device)
+        loss.backward()
+        self.qnetwork_local.optimizer.step()
+        self.counter += 1
+
+    def soft_update(self, tau):
+        for target_param, local_param in zip(self.qnetwork_target.parameters(), self.qnetwork_local.parameters()):
+            target_param.data.copy_(
+                tau*local_param.data + (1.0-tau)*target_param.data)
+
+    def regular_update(self):
+        for target_param, local_param in zip(self.qnetwork_target.parameters(), self.qnetwork_local.parameters()):
+            target_param.data.copy_(local_param.data + target_param.data)
 
 
 class DeltaEnv:
@@ -320,241 +469,68 @@ class DeltaEnv:
         plt.close(fig)
 
 
-actor_hidden = 32
-env = DeltaEnv()
-state_size = env.observation_space.n
-num_actions = env.action_space.n
-device = 'cuda'
-
-actor = nn.Sequential(nn.Linear(state_size, 300),
-                      nn.ReLU(),
-                      nn.Linear(300, 400),
-                      nn.ReLU(),
-                      nn.Linear(400, 600),
-                      nn.ReLU(),
-                      nn.Linear(600, 600),
-                      nn.ReLU(),
-                      nn.Linear(600, 400),
-                      nn.ReLU(),
-                      nn.Linear(400, 300),
-                      nn.ReLU(),
-                      nn.Linear(300, num_actions),
-                      nn.Softmax(dim=1)).to(device)
-
-Rollout = namedtuple('Rollout', ['states', 'actions', 'rewards', 'next_states', ])
-
-
-def get_action(state):
-    state = torch.tensor(state).float().unsqueeze(0).to(device)  # Turn state into a batch with a single element
-    dist = Categorical(actor(state))  # Create a distribution from probabilities for actions
-    return dist.sample().item()
-
-
-# Critic takes a state and returns its values
-#critic_hidden = 32
-
-critic = nn.Sequential(nn.Linear(state_size, 300),
-                      nn.ReLU(),
-                      nn.Linear(300, 400),
-                      nn.ReLU(),
-                      nn.Linear(400, 600),
-                      nn.ReLU(),
-                      nn.Linear(600, 600),
-                      nn.ReLU(),
-                      nn.Linear(600, 400),
-                      nn.ReLU(),
-                      nn.Linear(400, 300),
-                      nn.ReLU(),
-                      nn.Linear(300, 1)).to(device)
-#critic = nn.Sequential(nn.Linear(state_size, critic_hidden),
-#                       nn.ReLU(),
-#                       nn.Linear(critic_hidden, 1))
-critic_optimizer = Adam(critic.parameters(), lr=0.005)
-
-
-def update_critic(advantages):
-    loss = .5 * (advantages ** 2).mean()  # MSE
-    critic_optimizer.zero_grad()
-    loss.backward()
-    critic_optimizer.step()
-
-
-# delta, maximum KL divergence
-max_d_kl = 0.01
-
-
-def update_agent(rollouts):
-    states = torch.cat([r.states for r in rollouts], dim=0).to(device)
-    actions = torch.cat([r.actions for r in rollouts], dim=0).flatten().to(device)
-
-    advantages = [estimate_advantages(states, next_states[-1], rewards) for states, _, rewards, next_states in rollouts]
-    advantages = torch.cat(advantages, dim=0).flatten().to(device)
-
-    # Normalize advantages to reduce skewness and improve convergence
-    advantages = (advantages - advantages.mean()) / advantages.std()
-
-    update_critic(advantages)
-
-    distribution = actor(states)
-    distribution = torch.distributions.utils.clamp_probs(distribution)
-    probabilities = distribution[range(distribution.shape[0]), actions]
-
-    # Now we have all the data we need for the algorithm
-
-    # We will calculate the gradient wrt to the new probabilities (surrogate function),
-    # so second probabilities should be treated as a constant
-    L = surrogate_loss(probabilities, probabilities.detach(), advantages)
-    KL = kl_div(distribution, distribution)
-
-    parameters = list(actor.parameters())
-
-    g = flat_grad(L, parameters, retain_graph=True)
-    d_kl = flat_grad(KL, parameters, create_graph=True)  # Create graph, because we will call backward() on it (for HVP)
-
-    def HVP(v):
-        return flat_grad(d_kl @ v, parameters, retain_graph=True)
-
-    search_dir = conjugate_gradient(HVP, g)
-    max_length = torch.sqrt(2 * max_d_kl / (search_dir @ HVP(search_dir)))
-    max_step = max_length * search_dir
-
-    def criterion(step):
-        apply_update(step)
-
-        with torch.no_grad():
-            distribution_new = actor(states)
-            distribution_new = torch.distributions.utils.clamp_probs(distribution_new)
-            probabilities_new = distribution_new[range(distribution_new.shape[0]), actions]
-
-            L_new = surrogate_loss(probabilities_new, probabilities, advantages)
-            KL_new = kl_div(distribution, distribution_new)
-
-        L_improvement = L_new - L
-
-        if L_improvement > 0 and KL_new <= max_d_kl:
-            return True
-
-        apply_update(-step)
-        return False
-
-    i = 0
-    while not criterion((0.9 ** i) * max_step) and i < 10:
-        i += 1
-
-
-def estimate_advantages(states, last_state, rewards):
-    values = critic(states)
-    last_value = critic(last_state.unsqueeze(0))
-    next_values = torch.zeros_like(rewards)
-    for i in reversed(range(rewards.shape[0])):
-        last_value = next_values[i] = rewards[i] + 0.99 * last_value
-    advantages = next_values - values
-    return advantages
-
-
-def surrogate_loss(new_probabilities, old_probabilities, advantages):
-    return (new_probabilities / old_probabilities * advantages).mean()
-
-
-def kl_div(p, q):
-    p = p.detach()
-    return (p * (p.log() - q.log())).sum(-1).mean()
-
-
-def flat_grad(y, x, retain_graph=False, create_graph=False):
-    if create_graph:
-        retain_graph = True
-
-    g = torch.autograd.grad(y, x, retain_graph=retain_graph, create_graph=create_graph)
-    g = torch.cat([t.view(-1) for t in g])
-    return g
-
-
-def conjugate_gradient(A, b, delta=0., max_iterations=10):
-    x = torch.zeros_like(b)
-    r = b.clone()
-    p = b.clone()
-
-    i = 0
-    while i < max_iterations:
-        AVP = A(p)
-
-        dot_old = r @ r
-        alpha = dot_old / (p @ AVP)
-
-        x_new = x + alpha * p
-
-        if (x - x_new).norm() <= delta:
-            return x_new
-
-        i += 1
-        r = r - alpha * AVP
-
-        beta = (r @ r) / dot_old
-        p = r + beta * p
-
-        x = x_new
-    return x
-
-
-def apply_update(grad_flattened):
-    n = 0
-    for p in actor.parameters():
-        numel = p.numel()
-        g = grad_flattened[n:n + numel].view(p.shape)
-        p.data += g
-        n += numel
-
-
-def trainTRPO(epochs=200, num_rollouts=500):
-    mean_total_rewards = []
-    global_rollout = 0
-
-    for epoch in range(epochs):
-        rollouts = []
-        rollout_total_rewards = []
-
-        for t in range(num_rollouts):
-            state = env.reset()
-            done = False
-
-            samples = []
-
-            while not done:
-
-                with torch.no_grad():
-                    action = get_action(state)
-
-                next_state, reward, done, _ = env.step(action)
-
-                # Collect samples
-                samples.append((state, action, reward, next_state))
-
-                state = next_state
-
-            # Transpose our samples
-            states, actions, rewards, next_states = zip(*samples)
-
-            states = torch.stack([torch.from_numpy(state) for state in states], dim=0).float().to(device)
-            next_states = torch.stack([torch.from_numpy(state) for state in next_states], dim=0).float().to(device)
-            actions = torch.as_tensor(actions).unsqueeze(1).to(device)
-            rewards = torch.as_tensor(rewards).unsqueeze(1).to(device)
-
-            rollouts.append(Rollout(states, actions, rewards, next_states))
-
-            rollout_total_rewards.append(rewards.sum().item())
-            global_rollout += 1
-
-        update_agent(rollouts)
-        mtr = np.mean(rollout_total_rewards)
-        print(f'E: {epoch}.\tMean total reward across {num_rollouts} rollouts: {mtr}')
-
-        mean_total_rewards.append(mtr)
-    return mean_total_rewards
-
-
-mean_total_rewards = trainTRPO()
-np.save('TRPO_data.npy', mean_total_rewards)
-torch.save('TRPO_agent.pt', actor)
-plt.plot(mean_total_rewards)
-plt.show()
+def train(algorithm='DQN'):
+    env = DeltaEnv()
+    n_states = env.observation_space.n
+    n_actions = env.action_space.n
+    # ou_noise = OUNoise(dim=1, low=0, high=14)
+    # ou_noise.reset()
+
+    if algorithm == 'DQN':
+        agent = DQNAgent(alpha=0.0001, n_states=n_states, n_actions=n_actions, eps=0.2, eps_min=0.01)
+    else:
+        agent = DDQNAgent(alpha=0.0001, n_states=n_states, n_actions=n_actions, eps=0.2, eps_min=0.01)
+    # writer = SummaryWriter(f'./log/{LOGS_DIR}')
+    load_models = False
+    n_episodes = 500
+    n_steps = 500
+
+    # Load weights
+    if load_models:
+        agent.eps = agent.eps_min
+        agent.load_models()
+
+    total_reward_hist = []
+    avg_reward_hist = []
+    num_steps = 0
+    for episode in range(1, n_episodes + 1):
+        state = env.reset()
+        total_reward = 0
+        for t in range(n_steps):
+            num_steps += 1
+            # Render after episode 1800
+            #if episode > EPISODE_TO_START_PRINTING:
+            #    env.render(env.theta, env.goal_pos)
+            action = agent.epsilon_greedy(state)
+            #print('Greedy:', type(action))
+            # print('Noise:', int(ou_noise.get_action(action, num_steps).item()))
+            # action = int(ou_noise.get_action(action, num_steps).item())
+            next_state, reward, done, info = env.step(action)
+
+            agent.learn(state, action, reward, next_state, done)
+            state = next_state
+            total_reward += reward
+            if done:
+                break
+        if not load_models:
+            agent.decrement_epsilon()
+
+        # Save model
+        if episode > 100 and episode % 20 == 0:
+            agent.save_models()
+
+        total_reward_hist.append(total_reward)
+        avg_reward = np.average(total_reward_hist[-100:])
+        avg_reward_hist.append(avg_reward)
+        print("Episode :", episode, "Epsilon : {:.4f}".format(agent.eps), "Total Reward : {:.4f}".format(
+            total_reward), "Avg Reward : {:.4f}".format(avg_reward))
+    return total_reward_hist, avg_reward_hist, agent.qnetwork_local
+
+
+total_reward_hist_dqn, avg_reward_hist_dqn, actor = train('DQN')
+np.save('DQN_data.npy', avg_reward_hist_dqn)
+T.save('DQN_agent.pt', actor)
+
+total_reward_hist_ddqn, avg_reward_hist_ddqn, actor = train('DDQN')
+np.save('DDQN_data.npy', avg_reward_hist_ddqn)
+T.save('DDQN_agent.pt', actor)
