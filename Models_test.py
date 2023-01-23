@@ -382,7 +382,7 @@ def test_model(model):
 
 print('Training charts:')
 fig, ax = plt.subplots(1)
-t = np.arange(500)
+t = np.arange(200)
 ax.plot(t, np.load('DQN_data.npy'), label="DQN")
 ax.plot(t, np.load('DDQN_data.npy'), label="DDQN")
 ax.plot(t, np.load('TRPO_data.npy'), label="TRPO")
