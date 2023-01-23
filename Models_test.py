@@ -349,6 +349,45 @@ class DeltaEnv:
         ax.cla()
         plt.close(fig)
 
+import os
+import torch as T
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
+class QNetwork(nn.Module):
+    def __init__(self, lr=LEARNING_RATE, n_states=4, n_actions=6):
+        super(QNetwork, self).__init__()
+        # Detalhe da rede neural
+        self.fc1 = nn.Linear(n_states, 300)
+        self.fc2 = nn.Linear(300, 400)
+        self.fc3 = nn.Linear(400, 600)
+        self.fc4 = nn.Linear(600, 600)
+        self.fc5 = nn.Linear(600, 400)
+        self.fc6 = nn.Linear(400, 300)
+        self.fc7 = nn.Linear(300, n_actions)
+        # Optimizer e loss
+        self.optimizer = optim.Adam(self.parameters(), lr=lr)
+        self.loss = nn.MSELoss()
+        self.device = T.device('cuda:0' if T.cuda.is_available() else 'cpu')
+        self.to(self.device)
+
+    def forward(self, state):
+        x = F.relu(self.fc1(state))
+        x = F.relu(self.fc2(x))
+        x = F.relu(self.fc3(x))
+        x = F.relu(self.fc4(x))
+        x = F.relu(self.fc5(x))
+        x = F.relu(self.fc6(x))
+        return self.fc7(x)
+
+    def save_checkpoint(self):
+        print('... Save checkpoint ...')
+        T.save(self.state_dict(), self.checkpoint_file)
+
+    def load_checkpoint(self):
+        print('... Load checkpoint ...')
+        self.load_state_dict(T.load(self.checkpoint_file))
+
 
 def test_model(model):
     env = DeltaEnv()
