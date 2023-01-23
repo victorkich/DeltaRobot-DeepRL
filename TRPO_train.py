@@ -555,6 +555,6 @@ def trainTRPO(epochs=200, num_rollouts=500):
 
 mean_total_rewards = trainTRPO()
 np.save('TRPO_data.npy', mean_total_rewards)
-torch.save('TRPO_agent.pt', actor)
+torch.save(actor, 'TRPO_agent.pt')
 plt.plot(mean_total_rewards)
 plt.show()
