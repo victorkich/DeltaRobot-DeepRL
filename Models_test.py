@@ -390,30 +390,28 @@ class QNetwork(nn.Module):
 
 def test_model(model):
     env = DeltaEnv()
-    device = 'cuda'
-    n_episodes = 100
+    n_episodes = 10
     n_steps = 500
 
     total_reward_hist = []
-    avg_reward_hist = []
     for episode in range(1, n_episodes + 1):
         state = env.reset(episode)
         total_reward = 0
+        local_reward_hist = []
         for t in range(n_steps):
-            state = T.tensor(np.array([state]), dtype=T.float)  #.to(device)
+            state = T.tensor(np.array([state]), dtype=T.float)
             actions = model.forward(state)
             action = T.argmax(actions).item()
             next_state, reward, done, info = env.step(action)
 
             state = next_state
             total_reward += reward
+            local_reward_hist.append(reward)
             if done:
                 break
 
-        total_reward_hist.append(total_reward)
-        avg_reward = np.average(total_reward_hist[-100:])
-        avg_reward_hist.append(avg_reward)
-        print("Episode :", episode, "Total Reward : {:.4f}".format(total_reward), "Avg Reward : {:.4f}".format(avg_reward))
+        total_reward_hist.append(local_reward_hist)
+        print("Episode :", episode, "Total Reward : {:.4f}".format(total_reward))
 
     return total_reward_hist
 
@@ -447,6 +445,12 @@ trpo_agent.eval()
 trpo_reward_hist = test_model(trpo_agent)
 del(trpo_agent)
 
+print('Saving tests...')
+np.save('dqn_charts.npy', dqn_reward_hist)
+np.save('ddqn_charts.npy', ddqn_reward_hist)
+np.save('trpo_charts.npy', trpo_reward_hist)
+
+"""
 print('Testing charts:')
 fig, ax = plt.subplots(1)
 t = np.arange(100)
@@ -460,3 +464,4 @@ ax.legend()
 plt.savefig("testing_charts.pdf", format="pdf", bbox_inches="tight", backend='pgf')
 ax.cla()
 plt.close(fig)
+"""
