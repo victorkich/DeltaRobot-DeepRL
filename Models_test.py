@@ -411,7 +411,7 @@ def test_model(model):
                 break
 
         local_reward_hist = np.array(local_reward_hist)
-        total_reward_hist.vstack((local_reward_hist, local_reward_hist))
+        total_reward_hist = np.vstack((local_reward_hist, local_reward_hist))
         print("Episode :", episode, "Total Reward : {:.4f}".format(total_reward))
 
     return total_reward_hist
