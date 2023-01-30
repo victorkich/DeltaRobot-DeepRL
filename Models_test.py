@@ -393,7 +393,7 @@ def test_model(model):
     n_episodes = 10
     n_steps = 500
 
-    total_reward_hist = []
+    total_reward_hist = np.array([])
     for episode in range(1, n_episodes + 1):
         state = env.reset(episode)
         total_reward = 0
@@ -410,7 +410,8 @@ def test_model(model):
             if done:
                 break
 
-        total_reward_hist.append(local_reward_hist)
+        local_reward_hist = np.array(local_reward_hist)
+        total_reward_hist.vstack((local_reward_hist, local_reward_hist))
         print("Episode :", episode, "Total Reward : {:.4f}".format(total_reward))
 
     return total_reward_hist
