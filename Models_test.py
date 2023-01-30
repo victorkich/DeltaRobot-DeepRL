@@ -388,9 +388,9 @@ class QNetwork(nn.Module):
         self.load_state_dict(T.load(self.checkpoint_file))
 
 
-def test_model(model):
+def test_model(model, name='dqn'):
     env = DeltaEnv()
-    n_episodes = 10
+    n_episodes = 1000
     n_steps = 500
 
     total_reward_hist = np.array([])
@@ -411,7 +411,7 @@ def test_model(model):
                 break
 
         local_reward_hist = np.array(local_reward_hist)
-        total_reward_hist = np.vstack((total_reward_hist, local_reward_hist))
+        np.save('/{}_data_charts/data_charts_{}.npy'.format(name, episode), local_reward_hist)
         print("Episode :", episode, "Total Reward : {:.4f}".format(total_reward))
 
     return total_reward_hist
@@ -435,21 +435,21 @@ plt.close(fig)
 print('Running tests...')
 dqn_agent = T.load('DQN_agent.pt', map_location=T.device('cpu'))
 dqn_agent.eval()
-dqn_reward_hist = test_model(dqn_agent)
+dqn_reward_hist = test_model(dqn_agent, name='dqn')
 del(dqn_agent)
 ddqn_agent = T.load('DDQN_agent.pt', map_location=T.device('cpu'))
 ddqn_agent.eval()
-ddqn_reward_hist = test_model(ddqn_agent)
+ddqn_reward_hist = test_model(ddqn_agent, name='ddqn')
 del(ddqn_agent)
 trpo_agent = T.load('TRPO_agent.pt', map_location=T.device('cpu'))
 trpo_agent.eval()
-trpo_reward_hist = test_model(trpo_agent)
+trpo_reward_hist = test_model(trpo_agent, name='trpo')
 del(trpo_agent)
 
-print('Saving tests...')
-np.save('dqn_charts.npy', dqn_reward_hist)
-np.save('ddqn_charts.npy', ddqn_reward_hist)
-np.save('trpo_charts.npy', trpo_reward_hist)
+# print('Saving tests...')
+# np.save('dqn_charts.npy', dqn_reward_hist)
+# np.save('ddqn_charts.npy', ddqn_reward_hist)
+# np.save('trpo_charts.npy', trpo_reward_hist)
 
 """
 print('Testing charts:')
