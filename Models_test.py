@@ -393,7 +393,7 @@ def test_model(model, name='dqn'):
     n_episodes = 1000
     n_steps = 500
 
-    total_reward_hist = np.array([])
+    total_reward_hist = []
     for episode in range(1, n_episodes + 1):
         state = env.reset(episode)
         total_reward = 0
@@ -410,10 +410,11 @@ def test_model(model, name='dqn'):
             if done:
                 break
 
-        local_reward_hist = np.array(local_reward_hist)
-        np.save('{}_data_charts/data_charts_{}.npy'.format(name, episode), local_reward_hist)
+        # local_reward_hist = np.array(local_reward_hist)
+        total_reward_hist.append(total_reward)
+        # np.save('{}_data_charts/data_charts_{}.npy'.format(name, episode), local_reward_hist)
         print("Episode :", episode, "Total Reward : {:.4f}".format(total_reward))
-
+    total_reward_hist = np.array(total_reward_hist)
     return total_reward_hist
 
 """
@@ -446,10 +447,10 @@ trpo_agent.eval()
 trpo_reward_hist = test_model(trpo_agent, name='trpo')
 del(trpo_agent)
 
-# print('Saving tests...')
-# np.save('dqn_charts.npy', dqn_reward_hist)
-# np.save('ddqn_charts.npy', ddqn_reward_hist)
-# np.save('trpo_charts.npy', trpo_reward_hist)
+print('Saving tests...')
+np.save('dqn_charts.npy', dqn_reward_hist)
+np.save('ddqn_charts.npy', ddqn_reward_hist)
+np.save('trpo_charts.npy', trpo_reward_hist)
 
 """
 print('Testing charts:')
