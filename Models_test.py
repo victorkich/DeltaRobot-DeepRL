@@ -411,7 +411,7 @@ def test_model(model, name='dqn'):
                 break
 
         local_reward_hist = np.array(local_reward_hist)
-        np.save('/{}_data_charts/data_charts_{}.npy'.format(name, episode), local_reward_hist)
+        np.save('{}_data_charts/data_charts_{}.npy'.format(name, episode), local_reward_hist)
         print("Episode :", episode, "Total Reward : {:.4f}".format(total_reward))
 
     return total_reward_hist
