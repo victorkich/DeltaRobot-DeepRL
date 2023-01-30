@@ -446,9 +446,9 @@ trpo_reward_hist = test_model(trpo_agent)
 del(trpo_agent)
 
 print('Saving tests...')
-np.save('dqn_charts.npy', dqn_reward_hist)
-np.save('ddqn_charts.npy', ddqn_reward_hist)
-np.save('trpo_charts.npy', trpo_reward_hist)
+np.save('dqn_charts.npy', np.array(dqn_reward_hist))
+np.save('ddqn_charts.npy', np.array(ddqn_reward_hist))
+np.save('trpo_charts.npy', np.array(trpo_reward_hist))
 
 """
 print('Testing charts:')
