@@ -449,7 +449,7 @@ del(trpo_agent)
 
 print('Testing charts:')
 fig, ax = plt.subplots(1)
-t = np.arange(200)
+t = np.arange(100)
 ax.plot(t, dqn_reward_hist, label="DQN")
 ax.plot(t, ddqn_reward_hist, label="DDQN")
 ax.plot(t, trpo_reward_hist, label="TRPO")
