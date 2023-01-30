@@ -242,12 +242,10 @@ class DeltaEnv:
 
         for angle in degree_angles:
             rangle.append([np.deg2rad(angle[0]), np.deg2rad(angle[1]), np.deg2rad(angle[2])])
-        print(rangle)
-        print(radian_angles)
+        # print(rangle)
+        # print(radian_angles)
 
-        theta0 = rangle[PONTO - 1][0]
-        theta1 = rangle[PONTO - 1][1]
-        theta2 = rangle[PONTO - 1][2]
+        theta0, theta1, theta2 = np.choose(np.random.randint(0, len(degree_angles)), degree_angles)
 
         self.goal = self.forward_kinematics(theta0, theta1, theta2)[0]
 
@@ -266,10 +264,8 @@ class DeltaEnv:
 
         self.current_score = 0
 
-        self.ee_pos = self.forward_kinematics(
-            self.theta[0], self.theta[1], self.theta[2])[0]
-        observation = np.hstack(
-            (self.goal_pos, self.ee_pos, self.theta, self.distance))
+        self.ee_pos = self.forward_kinematics(self.theta[0], self.theta[1], self.theta[2])[0]
+        observation = np.hstack((self.goal_pos, self.ee_pos, self.theta, self.distance))
 
         return observation
 
@@ -404,7 +400,7 @@ def test_model(model):
         state = env.reset(episode)
         total_reward = 0
         for t in range(n_steps):
-            state = T.tensor([state], dtype=T.float).to(device)
+            state = T.tensor(np.array([state]), dtype=T.float)  #.to(device)
             actions = model.forward(state)
             action = T.argmax(actions).item()
             next_state, reward, done, info = env.step(action)
@@ -421,7 +417,7 @@ def test_model(model):
 
         return total_reward_hist
 
-
+"""
 print('Training charts:')
 fig, ax = plt.subplots(1)
 t = np.arange(200)
@@ -435,17 +431,18 @@ ax.legend()
 plt.savefig("training_charts.png")
 ax.cla()
 plt.close(fig)
+"""
 
 print('Running tests...')
-dqn_agent = T.load('DQN_agent.pt')
+dqn_agent = T.load('DQN_agent.pt', map_location=T.device('cpu'))
 dqn_agent.eval()
 dqn_reward_hist = test_model(dqn_agent)
 del(dqn_agent)
-ddqn_agent = T.load('DDQN_agent.pt')
+ddqn_agent = T.load('DDQN_agent.pt', map_location=T.device('cpu'))
 ddqn_agent.eval()
 ddqn_reward_hist = test_model(ddqn_agent)
 del(ddqn_agent)
-trpo_agent = T.load('TRPO_agent.pt')
+trpo_agent = T.load('TRPO_agent.pt', map_location=T.device('cpu'))
 trpo_agent.eval()
 trpo_reward_hist = test_model(trpo_agent)
 del(trpo_agent)
