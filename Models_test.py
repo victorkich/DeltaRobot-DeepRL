@@ -245,7 +245,7 @@ class DeltaEnv:
         # print(rangle)
         # print(radian_angles)
 
-        theta0, theta1, theta2 = np.choose(np.random.randint(0, len(degree_angles)), degree_angles)
+        theta0, theta1, theta2 = np.choose(np.random.randint(0, len(rangle)), rangle)
 
         self.goal = self.forward_kinematics(theta0, theta1, theta2)[0]
 
