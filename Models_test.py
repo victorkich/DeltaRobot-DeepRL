@@ -4,7 +4,9 @@ from gym import spaces
 import math as mt
 import matplotlib.pyplot as plt
 import numpy as np
+import cv2
 
+RENDER = 0
 
 class DeltaEnv:
     def __init__(self):
@@ -269,7 +271,7 @@ class DeltaEnv:
 
         return observation
 
-    def render(self, theta, goal_pos):
+    def render(self, theta, goal_pos, dir, ep):
         data = self.forward_kinematics(theta[0], theta[1], theta[2])
 
         ee_pos = data[0]
@@ -339,11 +341,14 @@ class DeltaEnv:
         ax.axes.set_ylim3d(bottom=-650, top=650)
         ax.axes.set_zlim3d(bottom=-1200, top=100)
 
+        
         self.render_counter += 1
         plt.savefig(
-            f"{RENDERS_DIR}/step_{self.render_counter}")
+            f"{dir}/step_{self.render_counter}")
         ax.cla()
         plt.close(fig)
+
+        
 
 
 import os
@@ -388,10 +393,10 @@ class QNetwork(nn.Module):
         self.load_state_dict(T.load(self.checkpoint_file))
 
 
-def test_model(model, name='dqn'):
+def test_model(model, name='dqn', img_dir='./dqn_images/'):
     env = DeltaEnv()
-    n_episodes = 1000
-    n_steps = 500
+    n_episodes = 50
+    n_steps = 100
 
     total_reward_hist = []
     for episode in range(1, n_episodes + 1):
@@ -399,6 +404,8 @@ def test_model(model, name='dqn'):
         total_reward = 0
         local_reward_hist = []
         for t in range(n_steps):
+            if RENDER == 1:
+                env.render(env.theta, env.goal_pos, img_dir, episode)
             state = T.tensor(np.array([state]), dtype=T.float)
             actions = model.forward(state)
             action = T.argmax(actions).item()
@@ -436,15 +443,15 @@ plt.close(fig)
 print('Running tests...')
 dqn_agent = T.load('DQN_agent.pt', map_location=T.device('cpu'))
 dqn_agent.eval()
-dqn_reward_hist = test_model(dqn_agent, name='dqn')
+dqn_reward_hist = test_model(dqn_agent, name='dqn', img_dir='./dqn_images')
 del(dqn_agent)
 ddqn_agent = T.load('DDQN_agent.pt', map_location=T.device('cpu'))
 ddqn_agent.eval()
-ddqn_reward_hist = test_model(ddqn_agent, name='ddqn')
+ddqn_reward_hist = test_model(ddqn_agent, name='ddqn', img_dir='./ddqn_images')
 del(ddqn_agent)
 trpo_agent = T.load('TRPO_agent.pt', map_location=T.device('cpu'))
 trpo_agent.eval()
-trpo_reward_hist = test_model(trpo_agent, name='trpo')
+trpo_reward_hist = test_model(trpo_agent, name='trpo', img_dir='./trpo_images')
 del(trpo_agent)
 
 print('Saving tests...')
